@@ -45,10 +45,11 @@ int prescaleRatioTimer0 = 64 / PRESCALE; // millis(), micros(), delay() depend o
 
 unsigned long dt_FPS = prescaleRatioTimer0 * 1000000 / FPS; // microseconds between sending serial to viz
 unsigned long dt = prescaleRatioTimer0 * 1000000 / SPS;     // microseconds between updating hapkit
+float dt_s = ((float) dt) / 1000000.0;
 //=========================================================
 // Measured limits of MR angle sensor from 49-972 corresponds to 0-pi, 0-180
 int MR_min = 49;      // minimum measurement from MR sensor
-int MR_max = 976;     // maximum measurement from MR sensor
+int MR_max = 978;     // maximum measurement from MR sensor
 int MR_range = MR_max - MR_min;
 
 // Measurements from devices
@@ -83,11 +84,17 @@ union {
 float thetaH_lowpass = 0.0;
 float thetaH_lowpass_last = 0.0;
 
+float d_thetaH_lowpass = 0.0;
+float d_thetaH_lowpass_last = 0.0;
+
+float dd_thetaH_lowpass = 0.0;
+float dd_thetaH_lowpass_last = 0.0;
+
 float d_thetaH = 0;
 float dd_thetaH = 0;
 
 union {
-  int asInt;
+  float asFloat;
   byte asBytes[4];
 } F;     //Force (as a float and a byte array)
 
@@ -103,43 +110,67 @@ boolean DEBUG = true;
 int modeNumber = 0;
 
 
+float motor_deadband = 140.0;
+float motor_command_max = 255;
+
+float mass = 0.1;
+float damping = 0.0;
+
+float gravity = 2.0;
+
+
 //// You will write these mode functions. They will calculate force as a function of theta, dtheta, ddtheta
-int mode0(float a, float da, float dda) {
-   return 0;
+float mode0(float a, float da, float dda) {
+
+   return (da * damping) + (dda * mass);
 }
 
-int mode1(float a, float da, float dda) {
-    int fo;
+float mode1(float a, float da, float dda) {
+    float fo;
     if (a<15){
       fo = 0;
     }
     else{
-      fo = int(60*(a-15));
+      fo = 0.1*(a-15);
     }
     return fo;
 }
 
-int mode2(float a, float da, float dda) {
-  return 0;
+float mode2(float a, float da, float dda) {
+
+  float F = (gravity * mass * (sin(a*M_PI/180)/sin(M_PI/2)));
+  return F;
 }
 
-int mode3(float a, float da, float dda) {
-  return 0;
+float mode3(float a, float da, float dda) {
+  return (-1.0*mode2(a, da, dda));
 }
 
-int mode4(float a, float da, float dda) {
-  if( (a < 1.5) && (a > -1.5) ) {
-    return int(110 * sign(a));
+float mode4(float a, float da, float dda) {
+  if( (a < 0.3) && (a > -0.3) ) {
+    return 0;
+  } else if( (a < 1.5) && (a > -1.5) ) {
+    return (0.02 * sign(a));
   } else {
     return 0;
   }
 }
 
-int mode5(float a, float da, float dda) {
-  return 0;
+float mode5(float a, float da, float dda) {
+ 
+  if(a>0) {
+   while(a>3)
+  a-=3;
+  return mode4(a-1.5,0.0,0.0);
+  }
+  else{
+  while (a<-3)
+    a+=3;
+  return mode4(a+1.5,0.0,0.0);
+  }
 }
 
-int (*modeList[])(float, float, float) = {mode0, mode1, mode2, mode3, mode4, mode5};
+float (*modeList[])(float, float, float) = {mode0, mode1, mode2, mode3, mode4, mode5};
 
 
 // Filtering
@@ -187,6 +218,8 @@ void setup()
 }
 
 
+
+
 void loop() {
 
   // Control sequence
@@ -214,20 +247,35 @@ void loop() {
     thetaH.asFloat = thetaCtot * rC / rS;
 
     thetaH_lowpass_last = thetaH_lowpass;
-    thetaH_lowpass = lowpass(0.1, thetaH.asFloat, thetaH_lowpass);
+    thetaH_lowpass = lowpass(0.1, thetaH.asFloat, thetaH_lowpass_last);
+    
+    d_thetaH = discrete_derivative(thetaH_lowpass, thetaH_lowpass_last, dt_s);
 
-    d_thetaH = discrete_derivative(thetaH_lowpass, thetaH_lowpass_last, dt);
-    dd_thetaH = 0;
+    d_thetaH_lowpass_last = d_thetaH_lowpass;
+    d_thetaH_lowpass = lowpass(0.005, d_thetaH, d_thetaH_lowpass_last);
 
-    F.asInt = modeList[modeNumber](thetaH.asFloat, d_thetaH, dd_thetaH);
+    dd_thetaH = discrete_derivative(d_thetaH_lowpass, d_thetaH_lowpass_last, dt_s);
+
+    dd_thetaH_lowpass_last = dd_thetaH_lowpass;
+    dd_thetaH_lowpass = lowpass(0.002, dd_thetaH, dd_thetaH_lowpass_last);
+
+    F.asFloat = modeList[modeNumber](thetaH_lowpass, d_thetaH_lowpass, dd_thetaH_lowpass);
 
 
+    if(F.asFloat < 0) {
+      duty = (-F.asFloat * (motor_command_max - motor_deadband)) + motor_deadband;
+      digitalWrite(DIR_PIN, HIGH);
+      }
+    else {
+      duty = (F.asFloat * (motor_command_max - motor_deadband)) + motor_deadband;
+      digitalWrite(DIR_PIN, LOW);
+    }
 
-    duty = min(abs(F.asInt), 255);
+    duty = min(duty, motor_command_max);
 
-    digitalWrite(DIR_PIN, F.asInt < 0);
     analogWrite(PWM_PIN, duty);
   }
+
 
   if (Serial.available() > 0) {
     switch (Serial.read()) {
@@ -253,18 +301,30 @@ void loop() {
     }
   }
 
+/*
   // Debug or visualization Serial message
-  //if (DEBUG){
-  //  if ((micros()-lastSerialTime)>dt_FPS){
-  //    lastSerialTime = micros();
-  //    Serial.print(thetaH.asFloat);
-  //    Serial.print(", ");
-  //    Serial.print(duty);
-  //    Serial.print(", ");
-  //    Serial.println(counter);
-  //    }
-  //    counter = 0;
-  //  }
+  if (DEBUG){
+    if ((micros()-lastSerialTime)>dt_FPS){
+      lastSerialTime = micros();
+      Serial.print(thetaH.asFloat);
+      Serial.print(", ");
+      Serial.print(thetaH_lowpass);
+      Serial.print(", ");
+      Serial.print(d_thetaH);
+      Serial.print(", ");
+      Serial.print(d_thetaH_lowpass);
+      Serial.print(", ");
+      Serial.print(dd_thetaH);
+      Serial.print(", ");
+      Serial.print(dd_thetaH_lowpass);
+      Serial.print(", ");
+      Serial.print(duty);
+      Serial.print(", ");
+      Serial.println(counter);
+      }
+      counter = 0;
+    }
+    */
 }
 
 //// Eatai's version, sets prescaler on Timer0, which breaks millis() and micros() so fixed with prescaleRatioTimer0 variable above.

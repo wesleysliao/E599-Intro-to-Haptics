@@ -26,7 +26,7 @@ screenSize = screenW, screenH = (1000,500)
 CWD = os.getcwd()
 dataDir = os.path.join(CWD, 'Data')
 
-COM_PORT = None
+COM_PORT = '/dev/ttyUSB0'
 #COM_PORT = '/dev/cu.usbserial-AL05J160'
 
 '''
@@ -111,7 +111,7 @@ if not keyboardMode:
     sleep(1)
 
 packetSize = 8
-packetString = '<fi'
+packetString = '<ff'
 
 ''' 
 ----------------------------------------------------------------------
@@ -287,7 +287,7 @@ while stillPlaying:
             t_elapsed = float(pygame.time.get_ticks() - t0_log) / 1000.0
             fid.write('%7.3f, %6.2f, %4d\n' % (t_elapsed, thetaH, F))
 
-        infoText = font.render("Angle: %2.1f deg   Force: %d"%(thetaH, F), 1, BLACK)
+        infoText = font.render("Angle: %2.1f deg   Force: %1.3f"%(thetaH, F), 1, BLACK)
 
         screen.blit(infoText, (600,15))
 
