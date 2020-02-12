@@ -1,3 +1,4 @@
+// -*-mode: c-*-
 //--------------------------------------------------------------------------
 // Eatai Roth, Indiana University, Jan 2020
 //
@@ -110,63 +111,98 @@ boolean DEBUG = true;
 int modeNumber = 0;
 
 
-float motor_deadband = 140.0;
-float motor_command_max = 255;
+const float motor_deadband = 140.0;
+const float motor_command_max = 255;
 
-float mass = 0.1;
-float damping = 0.0;
+const float mass = 0.1;
+const float damping = 0.0;
 
-float gravity = 2.0;
+const float gravity = 2.0;
+
+
+#define IMPACT_VIBRATIONS 0
+#if IMPACT_VIBRATIONS
+float wall_impact_time_since;
+float wall_impact_velocity;
+
+float impact_vibration(float time_since_impact_s, float impact_velocity) {
+  const float amplitude = 100;
+  const float decay_rate = 40000;
+  const float freq_Hz = 500;
+
+  return (impact_velocity * amplitude) * pow(M_E, -decay_rate * time_since_impact_s) * sin( 2 * M_PI * freq_Hz * time_since_impact_s);
+}
+#endif
 
 
 //// You will write these mode functions. They will calculate force as a function of theta, dtheta, ddtheta
-float mode0(float a, float da, float dda) {
+float mode0(float a, float da, float dda) { //flat
 
    return (da * damping) + (dda * mass);
 }
 
-float mode1(float a, float da, float dda) {
+float mode1(float a, float da, float dda) { //wall
     float fo;
     if (a<15){
       fo = 0;
+
+      #if IMPACT_VIBRATIONS
+      wall_impact_time_since = -1.0;
+      #endif
     }
     else{
       fo = 0.1*(a-15);
+
+      #if IMPACT_VIBRATIONS
+      if(wall_impact_time_since >= 0.0) {
+        wall_impact_time += dt_s;
+
+        fo += impact_vibration(wall_impact_time_since, wall_impact_velocity);
+
+      } else {
+        wall_impact_time_since = 0.0;
+        wall_impact_velocity = da;
+      }
+      #endif
     }
     return fo;
 }
 
-float mode2(float a, float da, float dda) {
+float mode2(float a, float da, float dda) { //valley
 
   float F = (gravity * mass * (sin(a*M_PI/180)/sin(M_PI/2)));
   return F;
 }
 
-float mode3(float a, float da, float dda) {
+float mode3(float a, float da, float dda) { //hillock
   return (-1.0*mode2(a, da, dda));
 }
 
-float mode4(float a, float da, float dda) {
-  if( (a < 0.3) && (a > -0.3) ) {
+float mode4(float a, float da, float dda) { //notch
+  if( (a < 0.3) && (a > -0.3) ) { //bottom of notch deadband
     return 0;
-  } else if( (a < 1.5) && (a > -1.5) ) {
+
+  } else if( (a < 1.5) && (a > -1.5) ) { //inside of notch but ouside deadband
     return (0.02 * sign(a));
-  } else {
+
+  } else { //outside of notch
     return 0;
   }
 }
 
-float mode5(float a, float da, float dda) {
+float mode5(float a, float da, float dda) { //bumpity
  
-  if(a>0) {
-   while(a>3)
-  a-=3;
-  return mode4(a-1.5,0.0,0.0);
-  }
-  else{
-  while (a<-3)
-    a+=3;
-  return mode4(a+1.5,0.0,0.0);
+  if(a > 0) {
+    while(a > 3)
+      a -= 3;
+
+    return mode4(a - 1.5, da, dda);
+
+  } else {
+    while (a < -3)
+      a += 3;
+
+    return mode4(a + 1.5, da, dda);
   }
 }
 
