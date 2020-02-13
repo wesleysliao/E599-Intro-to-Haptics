@@ -120,17 +120,30 @@ const float damping = 0.0;
 const float gravity = 2.0;
 
 
-#define IMPACT_VIBRATIONS 0
+#define IMPACT_VIBRATIONS 1
 #if IMPACT_VIBRATIONS
 float wall_impact_time_since;
 float wall_impact_velocity;
 
 float impact_vibration(float time_since_impact_s, float impact_velocity) {
-  const float amplitude = 100;
-  const float decay_rate = 40000;
-  const float freq_Hz = 500;
+  const float d_theta_to_mm_per_s = rH * 1000;
 
-  return (impact_velocity * amplitude) * pow(M_E, -decay_rate * time_since_impact_s) * sin( 2 * M_PI * freq_Hz * time_since_impact_s);
+  //Rubber
+  const float amplitude = -116.7;
+  const float decay_rate = 40000.0;
+  const float freq_Hz = 18.0;
+  //Wood
+  //const float amplitude = -1500.0;
+  //const float decay_rate = 600000.0;
+  //const float freq_Hz = 592.0;
+  //Aluminium
+  //const float amplitude = -100000.0;
+  //const float decay_rate = 1500000.0;
+  //const float freq_Hz = 1153.0;
+
+  return ((d_theta_to_mm_per_s * impact_velocity * amplitude)
+          * pow(M_E, -decay_rate * time_since_impact_s)
+          * sin( 2 * M_PI * freq_Hz * time_since_impact_s));
 }
 #endif
 
@@ -155,7 +168,7 @@ float mode1(float a, float da, float dda) { //wall
 
       #if IMPACT_VIBRATIONS
       if(wall_impact_time_since >= 0.0) {
-        wall_impact_time += dt_s;
+        wall_impact_time_since += dt_s;
 
         fo += impact_vibration(wall_impact_time_since, wall_impact_velocity);
 
