@@ -111,10 +111,10 @@ boolean DEBUG = true;
 int modeNumber = 0;
 
 
-const float motor_deadband = 140.0;
+const float motor_deadband = 134.0;
 const float motor_command_max = 255;
 
-const float mass = 0.1;
+const float mass = 1.0;
 const float damping = 0.0;
 
 const float gravity = 2.0;
@@ -126,12 +126,13 @@ float wall_impact_time_since;
 float wall_impact_velocity;
 
 float impact_vibration(float time_since_impact_s, float impact_velocity) {
-  const float d_theta_to_mm_per_s = rH * 1000;
+  const float d_theta_to_mm_per_s = rH * 1000 * (M_PI/180);
 
+  //Original
   //Rubber
-  const float amplitude = -116.7;
-  const float decay_rate = 40000.0;
-  const float freq_Hz = 18.0;
+  //const float amplitude = -116.7;
+  //const float decay_rate = 40000.0;
+  //const float freq_Hz = 18.0;
   //Wood
   //const float amplitude = -1500.0;
   //const float decay_rate = 600000.0;
@@ -140,6 +141,20 @@ float impact_vibration(float time_since_impact_s, float impact_velocity) {
   //const float amplitude = -100000.0;
   //const float decay_rate = 1500000.0;
   //const float freq_Hz = 1153.0;
+
+  //Most realistic
+  //Rubber
+  //const float amplitude = -240.0;
+  //const float decay_rate = 60000.0;
+  //const float freq_Hz = 30.0;
+  //Wood
+  const float amplitude = -150.0;
+  const float decay_rate = 80000.0;
+  const float freq_Hz = 100.0;
+  //Aluminium
+  //const float amplitude = -300.0;
+  //const float decay_rate = 90000.0;
+  //const float freq_Hz = 300.0;
 
   return ((d_theta_to_mm_per_s * impact_velocity * amplitude)
           * pow(M_E, -decay_rate * time_since_impact_s)
@@ -162,8 +177,7 @@ float mode1(float a, float da, float dda) { //wall
       #if IMPACT_VIBRATIONS
       wall_impact_time_since = -1.0;
       #endif
-    }
-    else{
+    } else {
       fo = 0.1*(a-15);
 
       #if IMPACT_VIBRATIONS
@@ -196,7 +210,7 @@ float mode4(float a, float da, float dda) { //notch
     return 0;
 
   } else if( (a < 1.5) && (a > -1.5) ) { //inside of notch but ouside deadband
-    return (0.02 * sign(a));
+    return (0.015 * sign(a));
 
   } else { //outside of notch
     return 0;
