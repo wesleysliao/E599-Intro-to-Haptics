@@ -72,7 +72,6 @@ terr4 = Terrain(terr4_x, terr4_y, path4, name = 'Notch')
 '''
 Mode 5: Bumpity
 '''
-
 terr5_x = np.arange(-1,1.01,0.05)
 terr5_y = np.zeros_like(terr5_x)
 terr5_y[1::2]=-0.05
@@ -80,8 +79,19 @@ path5 = lambda p: (p, min(np.abs(p%0.1-0.05)-0.05,0), 0)
 
 terr5 = Terrain(terr5_x, terr5_y, path5, name = 'Bumpity')
 
-simList = [None, terr1, terr2, terr3, terr4, terr5]
 
+'''
+Mode 6: Wall to right with vibration
+'''
+terr6_x = np.array([-1, 0.5, 0.5, 1])
+terr6_y = np.array([0, 0, 1, 1])
+
+path6 = lambda p: (min(p,0.45), 0, 0)
+
+terr6 = Terrain(terr6_x, terr6_y, path6, name='The Wall Vibration')
+
+
+simList = [None, terr1, terr2, terr3, terr4, terr5, terr6]
 
 
 ''' 
@@ -240,6 +250,8 @@ while stillPlaying:
             newMode = 4
         elif keys[pygame.K_5]:
             newMode = 5
+        elif keys[pygame.K_6]:
+            newMode = 6
         elif keys[pygame.K_k]:
             keyboardMode = not keyboardMode
         elif keys[pygame.K_r]:

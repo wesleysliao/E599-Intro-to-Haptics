@@ -116,12 +116,9 @@ const float motor_command_max = 255;
 
 const float mass = 1.0;
 const float damping = 0.0;
-
 const float gravity = 2.0;
 
 
-#define IMPACT_VIBRATIONS 1
-#if IMPACT_VIBRATIONS
 float wall_impact_time_since;
 float wall_impact_velocity;
 
@@ -144,13 +141,13 @@ float impact_vibration(float time_since_impact_s, float impact_velocity) {
 
   //Most realistic
   //Rubber
-  //const float amplitude = -240.0;
-  //const float decay_rate = 60000.0;
-  //const float freq_Hz = 30.0;
+  const float amplitude = 240.0;
+  const float decay_rate = 60000.0;
+  const float freq_Hz = 30.0;
   //Wood
-  const float amplitude = -150.0;
-  const float decay_rate = 80000.0;
-  const float freq_Hz = 100.0;
+  //const float amplitude = -150.0;
+  //const float decay_rate = 80000.0;
+  //const float freq_Hz = 100.0;
   //Aluminium
   //const float amplitude = -300.0;
   //const float decay_rate = 90000.0;
@@ -160,7 +157,6 @@ float impact_vibration(float time_since_impact_s, float impact_velocity) {
           * pow(M_E, -decay_rate * time_since_impact_s)
           * sin( 2 * M_PI * freq_Hz * time_since_impact_s));
 }
-#endif
 
 
 //// You will write these mode functions. They will calculate force as a function of theta, dtheta, ddtheta
@@ -171,33 +167,17 @@ float mode0(float a, float da, float dda) { //flat
 
 float mode1(float a, float da, float dda) { //wall
     float fo;
-    if (a<15){
+    if (a < 15){
       fo = 0;
-
-      #if IMPACT_VIBRATIONS
-      wall_impact_time_since = -1.0;
-      #endif
     } else {
-      fo = 0.1*(a-15);
-
-      #if IMPACT_VIBRATIONS
-      if(wall_impact_time_since >= 0.0) {
-        wall_impact_time_since += dt_s;
-
-        fo += impact_vibration(wall_impact_time_since, wall_impact_velocity);
-
-      } else {
-        wall_impact_time_since = 0.0;
-        wall_impact_velocity = da;
-      }
-      #endif
+      fo = 0.1*(a - 15) + (da * damping);
     }
     return fo;
 }
 
 float mode2(float a, float da, float dda) { //valley
 
-  float F = (gravity * mass * (sin(a*M_PI/180)/sin(M_PI/2)));
+  float F = (1.5 * (sin(a*M_PI/180)/sin(M_PI/2)));
   return F;
 }
 
@@ -210,7 +190,7 @@ float mode4(float a, float da, float dda) { //notch
     return 0;
 
   } else if( (a < 1.5) && (a > -1.5) ) { //inside of notch but ouside deadband
-    return (0.015 * sign(a));
+    return (0.040 * sign(a));
 
   } else { //outside of notch
     return 0;
@@ -233,7 +213,27 @@ float mode5(float a, float da, float dda) { //bumpity
   }
 }
 
-float (*modeList[])(float, float, float) = {mode0, mode1, mode2, mode3, mode4, mode5};
+float mode6(float a, float da, float dda) {
+    float fo = 0;
+    if (a < 15){
+      wall_impact_time_since = -1.0;
+    } else {
+
+      if(wall_impact_time_since >= 0.0) {
+        wall_impact_time_since += dt_s;
+
+        fo += impact_vibration(wall_impact_time_since, wall_impact_velocity);
+
+      } else {
+        wall_impact_time_since = 0.0;
+        wall_impact_velocity = da;
+      }
+    }
+
+    return fo + mode1(a, da, dda);
+}
+
+float (*modeList[])(float, float, float) = {mode0, mode1, mode2, mode3, mode4, mode5, mode6};
 
 
 // Filtering
@@ -360,6 +360,8 @@ void loop() {
         modeNumber = 4; break;
       case 0x35:
         modeNumber = 5; break;
+      case 0x36:
+        modeNumber = 6; break;
       default: return;
     }
   }
