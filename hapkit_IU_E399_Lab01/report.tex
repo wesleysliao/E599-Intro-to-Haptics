@@ -1,0 +1,160 @@
+\documentclass{article}
+\usepackage[letterpaper, total={6.5in, 9in}]{geometry}
+
+\title{E599 Intro to Haptics\\Lab 1: Haptic Rendering}
+
+\author{Wesley Liao\\Collaborators: Britain Taylor}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Haptic interfaces provide a sense of force-feedback to the user, in respect to a
+simulated system or visualization.
+The goal of this lab is to implement convincing policies for rendering motor torques in
+simple simulated environments.
+
+\section{Methods}
+
+\subsection{Hardware}
+
+  The base hardware is a version 3 Hapkit [1].
+  Hapkit is a 3D-printable single degree-of-freedom (DOF) haptic interface with a
+  revolute paddle, driven by a small DC motor.
+
+  The electrical control system is a custom Arduino-based board with an
+  integrated PWM motor driver and magnetic angle sensor.
+
+\subsection{Software}
+
+  A starting point for the software was provided in two parts:
+  an Arduino program for multiple modes of motor control and
+  a pygame visualization written in python.
+  The control board program and the python visualization communicate by serial USB.
+
+  The Arduino program is structured with a main motor control loop that calls a
+  policy function to determine the output duty cycle for the motor.
+  The policy functions accept arguments of paddle angle, angular velocity, and
+  angular acceleration, returning a signed relative motor torque ranging from -1 to 1.
+
+  In these policy functions each of the different visualizations is implemented.
+
+\subsection{Visualizations}
+
+  We implemented motor output policies for seven visualizations:
+  Flat, Wall, Wall with Impact Vibrations, Valley, Hillock, and Notch.
+  In each visuialization a cursor moves along a surface.
+
+  \subsubsection{Flat}
+
+    A plane with no features.
+    In this visualization we simulated the cursor mass and intertia.
+    Torque is calculated using the estimated angular acceleration multiplied by an arbitrary mass.
+
+  \subsubsection{Wall}
+
+    A flat plane with a sudden wall, simulated as a spring with viscous damping.
+    Spring constant set to 0.1 relative torque per degree.
+    Damping coefficient of 0.1 relative forque seconds per degree.
+
+  \subsubsection{Wall with Impact Vibrations}
+
+    Visually identical to the wall visualization, but to simulate a more
+    realistic sensation of colliding with a rigid wall, vibrations were
+    layered on top of the spring contact force and damping.
+    The vibration function is a decaying sinusoid, demonstrated by Okamura et. al. [2]
+    Vibration initial amplitude is determined by the angular velocity at time of
+    impact, decaying until the cursor leaves the wall boundary.
+
+  \subsubsection{Valley}
+
+    The inside lower-half of a circular ``half pipe''.
+    In this scenario, gravity pulls the cursor to the bottom of the valley.
+    The torque is set to the component of the downward gravitational force that is
+    tangental to the valley surface, multiplied by an arbitrary constant.
+
+  \subsubsection{Hillock}
+
+    The cursor rolls on the outside top-half of a circular surface.
+    Hillock simply returns the Valley visualization torque value multiplied by negative 1.
+
+  \subsubsection{Notch}
+
+    The cursor moves along flat surface with a single detent.
+    A constant torque is applied if the cursor is within the range of the
+    detent, driving the cursor to the detent center. A small deadband of no
+    torque was added at the bottom of the detent to prevent jittering.
+
+  \subsubsection{Bumpity}
+
+    A series of notches covering the full width of the visualization, with no
+    space seperating them.
+    To implement Bumpity, the cursor position was resolved to a multiple of the
+    notch width, then passed to the Notch visualization.
+
+\subsection{Implementation Foundations}
+
+  \subsubsection{Motor Deadband}
+    Friction in the hapkit causes the paddle to not move when lower motor voltages
+    are appiled. To counteract this, we added a deadband to the motor command.
+
+    The control board motor driver command is set by a direction bit and an
+    8-bit (0 to 255) PWM duty cycle.
+
+    We gradually increased the  motor duty cycle to determine when the motor was
+    just barely able to overcome the friction inherent in the hapkit, arriving at a duty cycle of 52.5\% (134 of 255).
+    This value is the motor ``deadband''.
+
+    Our policy functions return a unitless floating-point motor output ranging from -1 to 1.
+
+  \subsubsection{Velocity and Acceleration Estimation}
+
+    Paddle velocity is estimated as the discrete difference of low-pass filtered
+    angle measurements.
+    Similarly, the acceleration is estimated as the discrete difference of
+    low-pass filtered velocity estimations.
+    Before passing to the policy functions, the acceleration estimations are
+    again low-pass filtered.
+
+\section{Discussion and Conclusions}
+
+The Wall mode is implemented as a stiff spring law and viscous damping, which
+provides a reasonable sensation of rigidity, although somewhat spongy.
+The Wall with Impact Vibration is an attempt to improve the perception of
+stiffness by simulating vibrations that would be felt when tapping on a rigid
+surface, like a table. We tried several sets of constants according to Okamura
+et. al. [2], however, in each case the impact vibrations were not noticable compared
+to the simple Wall mode. This may be due to limits of the Hapkit itself. Tests
+to measure the frequency response of the Hapkit may illuminate the accuracy
+possible.
+
+The Valley and Hillock modes were designed by calculating the gravitational
+force that would act on a frictionless rolling object.
+Initially we attempted to add mass and intertia to the cursor in the Valley mode
+so that the cursor would ``ring'' in and settle in the bottom.
+However, the level of filtering necessary to achieve smooth velocity and acceleration
+measurements induced noticable delay when using the acceleration estimate to simulate intertia.
+When layered on top of other surfaces (like the valley) the delay was enough to cause instability.
+We left the intertia simulation in the Flat mode for demonstration, but it does
+not convey the feeling of mass, instead just a slow sort of thick liquid damping.
+With only the force policy and no intertia, the Valley cursor does ``ring'' due
+to the actual intertia and mass of the haptic paddle.
+
+The Notch and Bumpity modes perform well, providing convincing and pleasant feedback.
+The force needed to be balanced to prevent either the cursor getting ``stuck''
+on the side of a detent or bouncing back and forth against the detent sides.
+Occasionally the cursor can stick towards the edges of the range due to
+inconsistent fricion in the Hapkit, but that is preferrable to jittering.
+
+\section{References}
+\begin{enumerate}
+\item http://hapkit.stanford.edu/build.html
+
+\item Allison M Okamura, Mark R Cutkosky, and Jack T Dennerlein. Reality-based models
+for vibrationfeedback  in  virtual  environments.IEEE/ASME transactions on
+mechatronics,  6(3):245–252, 2001.
+\end{enumerate}
+
+\end{document}
