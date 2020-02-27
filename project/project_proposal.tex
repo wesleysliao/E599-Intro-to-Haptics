@@ -1,0 +1,171 @@
+\documentclass{article}
+\usepackage[letterpaper, total={6.5in, 10in}]{geometry}
+\usepackage{rotating}
+\usepackage{pgfgantt}
+
+\title{E599 Intro to Haptics\\Project Proposal}
+
+\author{Wesley Liao}
+
+\begin{document}
+
+\maketitle
+
+\section{High Level Deliverables}
+\begin{enumerate}
+  \item Demonstrate table slider motion and actuation functionality through
+    simple single-user haptic environments.
+    This will require implementing motor control and position feedback, and
+    tuing the physical moving components of the slider to function smoothly.
+
+  \item With the underlying slider capability implemented, extend functionality
+    to a two participant tracking task with visualizations.
+    The task is conceptualized as two people each with a rod carrying an egg.
+    The subjects must suspend the egg between the ends of the rods, and
+    balancing the pressure they apply together to neither break nor drop the egg.
+    While maintaining appropriate force to keep the egg suspended, the
+    participants are tasked with tracking a sinusoidal trajectory. Task
+    performance is measured by how well they track the trajectory and the number
+    of eggs dropped.
+    Both an individual and dyad version of the tracking task will be needed. The
+    individual version should be the same as the dyad version, but with the
+    second user simulated as a constant force or a simple deterministic policy.
+
+  \item The final component is to develop an experiment protocol for running
+    sets of trials with participants and collecting data. Experiments would
+    ideally compare individual and dyad performance as well as performance
+    between different pairs of individuals.
+\end{enumerate}
+
+\section{Implementation Requirements}
+\subsection*{Numbering Scheme}
+A.X.X.X.c
+\begin{enumerate}
+\item[A] First capital letter denoting hardware or software.
+\item[X] Following numerals denoting levels of sub-components.
+\item[c] Final lower case letter denoting a testable feature required for a sub-component.
+\end{enumerate}
+
+\subsection*{Hardware Components}
+    \begin{enumerate}
+    \item[H.1] Dyad Slider
+        \begin{enumerate}
+        \item[H.1.a] Will be usable by two seated subjects, sliding along a single axis in a comfortable range of motion by use of slider handles.
+        \item[H.1.b] Capable of measuring slider position and force applied to handles along slider axis.
+        \item[H.1.c] Capable of applying sufficient force to the slider to simulate dynamics.
+        \item[H.1.d] Applied force should be limited to a safe level of maximum output.
+        \end{enumerate}
+    \item[H.2] Subject Screens
+        \begin{enumerate}
+        \item[H.2.a] Each screen should be clearly visible to one subject and invisible to the other subject while both are seated in use of the slider.
+        \end{enumerate}
+    \end{enumerate}
+
+\subsection*{Software Components}
+    \begin{enumerate}
+      \item[S.1] Input and Output
+      \begin{enumerate}
+
+        \item[S.1.1] Motor Control
+          \begin{enumerate}
+          \item[S.1.1.a] Will control motor torque as a function of slider state and task state.
+          \end{enumerate}
+
+        \item[S.1.2] Slider State
+          \begin{enumerate}
+          \item[S.1.2.a] Will measure encoder position.
+          \item[S.1.2.b] Will estimate velocity and acceleration of slider.
+          \item[S.1.2.c] Will measure applied force to slider handles.
+          \end{enumerate}
+
+        \item[S.1.3] Data Collection
+          \begin{enumerate}
+            \item[S.1.3.a] Data will be formatted as human-readable, comma-deliminated text.
+            \item[S.1.3.b] Motor state, slider state, and task and experiment state will be recorded.
+          \end{enumerate}
+
+      \end{enumerate}
+
+    \item[S.2] Reference Tracking Task
+        \begin{enumerate}
+
+        \item[S.2.1] Visualization
+            \begin{enumerate}
+            \item[S.2.1.a] Capable of displaying consistent 60 Hz or higher framerate.
+            \item[S.2.1.b] Capable of separate visualizations presented on each subject screen.
+            \item[S.2.1.c] Visualizations will be composed of reference trajectories and cursors.
+            \item[S.2.1.d] Cursor positions in the visualization will be set by a function of time, task state, and slider state.
+            \item[S.2.1.e] Reference trajectories will be defined as a position function of time.
+            \end{enumerate}
+
+        \item[S.2.2]  End condition
+            \begin{enumerate}
+            \item[S.2.2.a] Capable of triggering the trial end by some function of task state and input.
+            \item[S.2.2.b] Can be set to require trigger condition to be true for an amount of time before triggering end of trial.
+            \item[S.2.2.c] Can be set to either reset the accumulated time to zero or continue counting if the trigger condition becomes false before enough time is elapsed to trigger end of trial.
+            \item[S.2.2.d] Will return a exit code to be used by experiment structure.
+            \end{enumerate}
+
+        \end{enumerate}
+
+       
+    \item[S.3.] Experiment Structure
+        \begin{enumerate}
+        \item[S.3.1] Text Instructions
+            \begin{enumerate}
+            \item[S.3.1.a] Will display text to inform subjects.
+            \item[S.3.1.b] Can be set to display on either subject screen individually or both screens simultaneously.
+            \item[S.3.1.c] Accepts subject input to proceed to next step of trial or return to previous step after a set minimum viewing time.
+            \item[S.3.1.d] Can be set to automatically advance to next step after a timeout, or wait indefinitely for input.
+            \end{enumerate}
+
+        \item[S.3.2] Task Trials
+            \begin{enumerate}
+            \item[S.3.2.a] Will have methods of prescribing sequences and
+                control flow of multiple trials based on exit codes of individual trials.
+            \end{enumerate}
+        \end{enumerate}
+
+    \end{enumerate}
+
+\newpage
+\begin{sidewaysfigure}
+
+\section{Timeline}
+\begin{ganttchart}[
+  vgrid,
+  time slot format=isodate,
+  expand chart=10in,
+  y unit chart=0.25in,
+  bar/.append style={fill=black},
+  bar incomplete/.append style={fill=white},
+  progress label text=\relax,
+%  today={\the\year-\the\month-\the\day},
+  ]{2020-03-02}{2020-04-28}
+
+  \gantttitlecalendar{month=name, week, day} \\
+
+  \ganttbar[inline, progress=0]{Spring Break}{2020-03-14}{2020-03-22} \\
+
+  \ganttgroup[inline]{Hardware Components}{2020-03-02}{2020-03-13} \\
+    \ganttbar[progress=0]{Slider Motor Refit}{2020-03-02}{2020-03-06} \\
+    \ganttbar[progress=0]{Wire Guide Improvements}{2020-03-09}{2020-03-13} \\
+
+  \ganttgroup[inline]{Software Components}{2020-03-23}{2020-04-17} \\
+    \ganttbar[progress=0]{Slider State Input}{2020-03-23}{2020-03-25} \\
+    \ganttbar[progress=0]{Motor Control Output}{2020-03-25}{2020-03-27} \\
+    \ganttbar[progress=0]{Data Output}{2020-03-30}{2020-03-31} \\
+    \ganttbar[progress=0]{Haptic Demos}{2020-04-01}{2020-04-03} \\
+    \ganttbar[progress=0]{Dyad Task}{2020-04-06}{2020-04-10} \\
+    \ganttbar[progress=0]{Individual Task}{2020-04-13}{2020-04-15} \\
+    \ganttbar[progress=0]{Experiment Structure}{2020-04-16}{2020-04-17} \\
+%    \ganttbar[progress=0]{Software Validation}{2020-04-20}{2020-04-24} \\
+
+    \ganttgroup[inline]{Experiment Design}{2020-03-02}{2020-04-24} \\
+      \ganttbar[progress=0]{Procedure Draft}{2020-03-02}{2020-03-13} \\
+      \ganttbar[progress=0]{Procedure Revisions}{2020-03-23}{2020-04-15} \\
+      \ganttbar[progress=0]{Procedure Testing}{2020-04-20}{2020-04-24} \\
+
+\end{ganttchart}
+\end{sidewaysfigure}
+\end{document}
